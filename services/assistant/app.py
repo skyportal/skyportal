@@ -26,8 +26,12 @@ from skyportal.models import (
     DBSession,
     Filter,
     GcnEvent,
+    Group,
+    GroupClassification,
+    GroupSpectrum,
     GroupUser,
     ObjAnalysis,
+    Spectrum,
     Stream,
     Token,
     User,
@@ -379,8 +383,37 @@ def answer(
     return text, trace, proposal(trace), last.get("model") or model
 
 
-def answer_from_facts(obj_id, analysis_id, token):
-    """A FLARE triage the model only interprets, or None when the analysis is not one."""
+def readable_by_groups(join, key, ids, group_ids):
+    """Of `ids`, those every member of `group_ids` can read: shared with each of
+    these groups, or with the public group."""
+    if not ids:
+        return set()
+    column = getattr(join, key)
+    with DBSession() as session:
+        public_id = session.scalar(
+            sa.select(Group.id).where(Group.name == cfg["misc.public_group_name"])
+        )
+        rows = session.execute(
+            sa.select(column, join.group_id).where(
+                column.in_(ids), join.group_id.in_([*group_ids, public_id])
+            )
+        ).all()
+    shared = {}
+    for item_id, group_id in rows:
+        shared.setdefault(item_id, set()).add(group_id)
+    return {
+        item_id
+        for item_id, groups in shared.items()
+        if public_id in groups or set(group_ids) <= groups
+    }
+
+
+def answer_from_facts(obj_id, analysis_id, token, group_ids=None):
+    """A FLARE triage the model only interprets, or None when the analysis is not one.
+
+    With `group_ids`, the groups its comment goes to, it rests only on data every
+    member of those groups can read, whatever the token reading it can see.
+    """
     trace = []
 
     def read(name, **arguments):
@@ -396,6 +429,14 @@ def answer_from_facts(obj_id, analysis_id, token):
     if flare is None:
         return None
     source = read("get_sources", obj_id=obj_id, includeSpectrumExists=True) or {}
+    if group_ids and source.get("spectrum_exists"):
+        with DBSession() as session:
+            spectra = session.scalars(
+                sa.select(Spectrum.id).where(Spectrum.obj_id == obj_id)
+            ).all()
+        source["spectrum_exists"] = bool(
+            readable_by_groups(GroupSpectrum, "spectr_id", spectra, group_ids)
+        )
     catalogs = None
     if source.get("ra") is not None and source.get("dec") is not None:
         brokers = read("list_brokers") or []
@@ -417,13 +458,18 @@ def answer_from_facts(obj_id, analysis_id, token):
             if isinstance(found, dict) and any(k in found for k in HOST_CATALOGS):
                 catalogs = found
                 break
-    facts = triage_facts(
-        flare,
-        source,
-        read("analyze_light_curve", obj_id=obj_id),
-        catalogs,
-        read("get_classifications", obj_id=obj_id),
-    )
+    visible = {"visible_to_groups": group_ids} if group_ids else {}
+    light_curve = read("analyze_light_curve", obj_id=obj_id, **visible)
+    classifications = read("get_classifications", obj_id=obj_id) or []
+    if group_ids:
+        readable = readable_by_groups(
+            GroupClassification,
+            "classification_id",
+            [c["id"] for c in classifications],
+            group_ids,
+        )
+        classifications = [c for c in classifications if c["id"] in readable]
+    facts = triage_facts(flare, source, light_curve, catalogs, classifications)
     listed = "\n".join(f"- {fact}" for fact in facts)
     prompt = FACTS_PROMPT.format(obj_id=obj_id, facts=listed)
     reading = chat([{"role": "user", "content": prompt}], [], timeout=ANSWER_TIMEOUT)
@@ -796,7 +842,12 @@ def respond(message_id):
         try:
             reply = None
             if analysis_id is not None:
-                reply = answer_from_facts(context_id, analysis_id, token_id)
+                reply = answer_from_facts(
+                    context_id,
+                    analysis_id,
+                    token_id,
+                    (notify or {}).get("comment_groups"),
+                )
             if reply is None:
                 reply = answer(
                     conversation,

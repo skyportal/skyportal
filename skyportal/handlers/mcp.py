@@ -527,6 +527,12 @@ def _band_summary(name, band):
             minimum=0,
         ),
         "magsys": _prop("string", "Magnitude system (default ab)."),
+        "visible_to_groups": _prop(
+            "array",
+            "Only points every member of these groups can see: shared with each "
+            "of them, or with everyone.",
+            items={"type": "integer"},
+        ),
     },
     required=("obj_id",),
 )
@@ -539,6 +545,14 @@ async def analyze_light_curve(handler, args):
         f"/api/sources/{obj_id}/photometry",
         query={"format": "mag", "magsys": magsys},
     )
+    if group_ids := set(args.get("visible_to_groups") or []):
+        public = handler.cfg["misc.public_group_name"]
+        photometry = [
+            p
+            for p in photometry
+            if any(g["name"] == public for g in p.get("groups") or [])
+            or group_ids <= {g["id"] for g in p.get("groups") or []}
+        ]
     by_filter = {}
     for p in photometry:
         by_filter.setdefault(p["filter"], []).append(p)
