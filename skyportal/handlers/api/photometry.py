@@ -38,6 +38,7 @@ from sqlalchemy.orm.attributes import set_committed_value
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
+from baselayer.app.models import new_async_session
 from baselayer.log import make_log
 
 from ...enum_types import ALLOWED_BANDPASSES, BANDPASS_COLORS
@@ -2589,12 +2590,13 @@ class PhotometryHandler(BaseHandler):
                 )
             ).first()
             if phot_stat is not None:
-                all_phot = (
-                    await session.scalars(
-                        sa.select(Photometry).where(Photometry.obj_id == obj_id)
-                    )
-                ).all()
-                phot_stat.full_update(all_phot)
+                async with new_async_session() as plain_session:
+                    all_phot = (
+                        await plain_session.scalars(
+                            sa.select(Photometry).where(Photometry.obj_id == obj_id)
+                        )
+                    ).all()
+                    phot_stat.full_update(all_phot)
 
             await session.commit()
 
