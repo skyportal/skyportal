@@ -500,7 +500,7 @@ class Photometry(conesearch_alchemy.Point, Base):
 
         serialize_photometry = serialize(
             self,
-            "ab",
+            PHOT_SYS,
             "mag",
             created_at=False,
             groups=False,
@@ -512,6 +512,7 @@ class Photometry(conesearch_alchemy.Point, Base):
             "mag": serialize_photometry.get("mag"),
             "magerr": serialize_photometry.get("magerr"),
             "filter": serialize_photometry.get("filter"),
+            "magsys": PHOT_SYS,
             "limiting_mag": serialize_photometry.get("limiting_mag"),
             "instrument_id": serialize_photometry.get("instrument_id"),
             "instrument_name": serialize_photometry.get("instrument_name"),
