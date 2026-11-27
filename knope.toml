@@ -1,0 +1,76 @@
+[package]
+versioned_files = [
+    "pyproject.toml",
+    "projects/api-models/pyproject.toml",
+    "projects/python-client/pyproject.toml",
+    { path = "skyportal/__init__.py", regex = "(?m)^__version__ = \"(?<version>[^\"]+)\"$" },
+]
+changelog = "CHANGELOG.md"
+assets = "dist/*"
+
+extra_changelog_sections = [
+    { name = "Breaking changes", types = ["breaking"] },
+    { name = "Features", types = ["feature"] },
+    { name = "Bug fixes", types = ["bugfix"] },
+    { name = "Documentation", types = ["docs"] },
+    { name = "Refactors", types = ["refactor"] },
+    { name = "Other changes", types = ["other"] },
+]
+
+# Changesets only; the version always comes from --override-version
+[changes]
+ignore_conventional_commits = true
+
+[[workflows]]
+name = "document-change"
+
+[[workflows.steps]]
+type = "CreateChangeFile"
+
+[[workflows]]
+name = "prepare-release"
+
+[[workflows.steps]]
+type = "Command"
+command = "git switch -c release"
+
+[[workflows.steps]]
+type = "PrepareRelease"
+
+# Knope can't bump the skyportal-py-models pin
+[[workflows.steps]]
+type = "Command"
+shell = true
+command = "sed -i.bak -E 's/(skyportal-py-models==)[^\"]+/\\1$version/' projects/python-client/pyproject.toml && rm projects/python-client/pyproject.toml.bak && uv lock"
+variables = { "$version" = "Version" }
+
+[[workflows.steps]]
+type = "Command"
+command = "git -c user.name=\"github-actions[bot]\" -c user.email=\"41898282+github-actions[bot]@users.noreply.github.com\" commit --all -m \"chore: prepare release $version\""
+variables = { "$version" = "Version" }
+
+[[workflows.steps]]
+type = "Command"
+command = "git push --force --set-upstream origin release"
+
+[[workflows.steps]]
+type = "CreatePullRequest"
+base = "main"
+
+[workflows.steps.title]
+template = "chore: prepare release $version"
+variables = { "$version" = "Version" }
+
+[workflows.steps.body]
+template = "This PR was created by Knope. It stays open and up to date with everything waiting to be released; merging it tags the release and publishes the packages.\n\n$changelog"
+variables = { "$changelog" = "ChangelogEntry" }
+
+[[workflows]]
+name = "release"
+
+[[workflows.steps]]
+type = "Release"
+
+[github]
+owner = "skyportal"
+repo = "skyportal"
