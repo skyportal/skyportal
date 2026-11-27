@@ -218,6 +218,26 @@ r = requests.get(url, headers=<token info>)
 data = r.json()
 ```
 
+## Excluding groups from automated spectrum fitting
+
+A spectrum-upload default analysis can skip spectra shared with selected groups.
+Set `excluded_group_ids` in its `source_filter` when creating the rule or editing
+it through `PATCH /api/analysis_service/{service_id}/default_analysis/{rule_id}`.
+For example:
+
+```json
+{
+  "source_filter": {
+    "spectrum": "any",
+    "wavelength_range": [4000, 9500],
+    "excluded_group_ids": [42]
+  }
+}
+```
+
+An excluded group takes priority when a spectrum is also shared with an allowed
+group. This affects new uploads and leaves manual analysis available.
+
 ## Summaries
 
 [Analysis services](#external-analysis-services) in SkyPortal can be declared as providing a summary of a source. When `is_summary` is `True` in an analysis service, the results of an analysis using this service will be stored in the `obj.summary` and `obj.summary_history` (akin to how redshifts are stored and updated). If the associated analysis is deleted then it will be removed from `obj.summary_history`. The frontend allows a user to see the summary history and edit the results of a summary analysis.
