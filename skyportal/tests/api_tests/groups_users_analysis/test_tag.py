@@ -330,6 +330,46 @@ def test_delete_association(super_admin_token, public_source, public_group):
     assert "Association not found" in data["message"]
 
 
+def test_source_tag_not_duplicated_across_user_groups(
+    super_admin_token,
+    public_source_two_groups,
+    public_group,
+    public_group2,
+    view_only_token_two_groups,
+):
+    # A non-admin user who is a member of both of a tag's groups used to see
+    # the tag duplicated on the source page because the access-control join
+    # on `groups.users` emits one row per matching (tag_group, user_membership)
+    # pair. Admins skipped the join, so the bug was invisible to them.
+    tag_data = {"name": f"TagMultiGroup{uuid.uuid4().hex}"}
+    status, tag = api("POST", "objtagoption", data=tag_data, token=super_admin_token)
+    assert status == 200
+    tag_option_id = tag["data"]["id"]
+
+    assoc_data = {
+        "objtagoption_id": tag_option_id,
+        "obj_id": public_source_two_groups.id,
+        "group_ids": [public_group.id, public_group2.id],
+    }
+    status, _ = api("POST", "objtag", data=assoc_data, token=super_admin_token)
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"sources/{public_source_two_groups.id}",
+        params={"includeTags": "true"},
+        token=view_only_token_two_groups,
+    )
+    assert status == 200, data
+    matching = [
+        t for t in data["data"]["tags"] if t["objtagoption_id"] == tag_option_id
+    ]
+    assert len(matching) == 1, matching
+    returned_group_ids = {g["id"] for g in matching[0]["groups"]}
+    assert returned_group_ids == {public_group.id, public_group2.id}
+    assert matching[0]["total_group_count"] == 2
+
+
 def test_sources_list_hides_tags_from_other_groups(
     super_admin_token,
     public_source_two_groups,
