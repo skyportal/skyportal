@@ -205,6 +205,27 @@ def _normalize_fink_lsst(object_id, rows):
     }
 
 
+def _in_jd_window(alerts, kwargs):
+    """Each alert cut to its detections inside jd_start/jd_end, dropping the
+    alerts left with none."""
+    jd_start, jd_end = kwargs.get("jd_start"), kwargs.get("jd_end")
+    if jd_start is None and jd_end is None:
+        return alerts
+    out = []
+    for alert in alerts:
+        kept = [
+            p
+            for p in alert["prv_candidates"]
+            if p.get("jd") is not None
+            and (jd_start is None or p["jd"] >= float(jd_start))
+            and (jd_end is None or p["jd"] <= float(jd_end))
+        ]
+        if kept:
+            candidate = {key: kept[-1].get(key) for key in alert["candidate"]}
+            out.append({**alert, "candidate": candidate, "prv_candidates": kept})
+    return out
+
+
 class FINKBROKER(BrokerAPI):
     """The Fink alert broker.
 
@@ -320,7 +341,8 @@ class FINKBROKER(BrokerAPI):
         survey = _fink_survey(broker, kwargs)
         object_id = kwargs.get("objectId") or kwargs.get("object_id")
         if object_id:
-            return [FINKBROKER.get_alert(broker, object_id, session, **kwargs)]
+            alert = FINKBROKER.get_alert(broker, object_id, session, **kwargs)
+            return _in_jd_window([alert], kwargs)
         ra, dec = kwargs.get("ra"), kwargs.get("dec")
         if ra is not None and dec is not None:
             rows = _fink_post(
@@ -342,7 +364,8 @@ class FINKBROKER(BrokerAPI):
                 oid = r.get(oid_key)
                 if oid:
                     by_obj.setdefault(oid, []).append(r)
-            return [normalize(oid, rs) for oid, rs in by_obj.items()]
+            alerts = [normalize(oid, rs) for oid, rs in by_obj.items()]
+            return _in_jd_window(alerts, kwargs)
         raise ValueError("Provide objectId, or ra+dec.")
 
     @staticmethod

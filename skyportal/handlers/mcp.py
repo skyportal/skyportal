@@ -268,7 +268,8 @@ async def post_source(handler, args):
 
 @tool(
     "get_photometry",
-    "Retrieve all photometry of a source.",
+    "Retrieve the photometry of a source. A long light curve is cut to fit the "
+    "answer, so narrow it with start_mjd, end_mjd and columns.",
     {
         "obj_id": _prop("string", "Source ID."),
         "format": _prop(
@@ -284,13 +285,37 @@ async def post_source(handler, args):
         ),
         "deduplicatePhotometry": _prop("boolean", "Deduplicate photometry."),
         "includeOwnerInfo": _prop("boolean", "Include who uploaded each point."),
+        "start_mjd": _prop("number", "Only points at or after this MJD."),
+        "end_mjd": _prop("number", "Only points at or before this MJD."),
+        "columns": _prop(
+            "array",
+            "Only these fields, returned as a table with one row per point, e.g. "
+            '["mjd", "filter", "mag", "magerr", "limiting_mag", "ra", "dec"].',
+            items={"type": "string"},
+        ),
     },
     required=("obj_id",),
     passthrough="GET /api/sources/{obj_id}/photometry",
 )
 async def get_photometry(handler, args):
     obj_id = args.pop("obj_id")
-    return await handler.api("GET", f"/api/sources/{obj_id}/photometry", query=args)
+    start, end = args.pop("start_mjd", None), args.pop("end_mjd", None)
+    columns = args.pop("columns", None)
+    points = await handler.api("GET", f"/api/sources/{obj_id}/photometry", query=args)
+    if start is not None or end is not None:
+        points = [
+            p
+            for p in points
+            if p.get("mjd") is not None
+            and (start is None or p["mjd"] >= start)
+            and (end is None or p["mjd"] <= end)
+        ]
+    if columns:
+        return {
+            "columns": columns,
+            "rows": [[p.get(c) for c in columns] for p in points],
+        }
+    return points
 
 
 @tool(
@@ -1296,7 +1321,9 @@ def _summarize_alerts(data, full):
     "list_brokers",
     "The brokers this token can query, with the ids the other broker tools "
     "need and the operations each one supports. Start here: broker_id is not "
-    "guessable, and a broker only answers the operations it lists.",
+    "guessable, and a broker only answers the operations it lists. A broker "
+    "marked needs_own_token answers nothing until the user adds their own API "
+    "token on its page, so do not query it.",
     {},
 )
 async def list_brokers(handler, args):
@@ -1311,6 +1338,7 @@ async def list_brokers(handler, args):
             "supports": sorted(
                 name for name, ok in (b.get("capabilities") or {}).items() if ok is True
             ),
+            **({"needs_own_token": True} if b.get("needs_own_token") else {}),
         }
         for b in (brokers or [])
     ]

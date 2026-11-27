@@ -119,12 +119,6 @@
   telescope_id: =Lick 3-m
   type: imager
   filters: ["bessellux", "bessellb", "bessellv", "bessellr", "besselli"]
-- =id: CFH12k
-  band: optical
-  name: CFH12k
-  telescope_id: =P48
-  type: imager
-  filters: ["ztfg", "ztfr"]
 - =id: ISIS
   band: optical
   name: ISIS
@@ -333,13 +327,6 @@
   filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "bessellb", "bessellv"]
   api_classname: IOOAPI
   tns_id: 244
-- =id: IOI
-  band: ir
-  name: IOI
-  telescope_id: =LT
-  type: imager
-  filters: ["csphs"]
-  api_classname: IOIAPI
 - =id: RATCam
   band: optical
   name: RATCam
@@ -389,11 +376,12 @@
   name: HCT Spectograph
   telescope_id: =HCT
   type: spectrograph
-- =id: SALT_Spectrograph
+- =id: SALT_RSS
   band: optical
-  name: Spectrograph
+  name: RSS
   telescope_id: =SALT
   type: spectrograph
+  tns_id: 117
 - band: optical
   name: Sinistro
   telescope_id: =LCOGT1m
@@ -704,13 +692,6 @@
   type: imager
   # todo: find out what filters go here
   filters: []
-- =id: MASTER-SAAO_Camera
-  band: optical
-  name: Camera
-  telescope_id: =MASTER-SAAO
-  type: imager
-  # todo: add unfiltered
-  filters: []
 - name: NIRES
   =id: NIRES
   telescope_id: =Keck2
@@ -745,12 +726,6 @@
   telescope_id: =WINTER
   type: imager
   api_classname: SPRINGAPI
-- =id: SUMMER
-  band: optical
-  filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
-  name: SUMMER
-  telescope_id: =WINTER
-  type: imager
 - band: optical
   name: KAIT
   telescope_id: =KAIT

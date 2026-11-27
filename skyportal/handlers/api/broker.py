@@ -326,6 +326,24 @@ class BrokerHandler(BaseHandler):
         include_altdata = self.current_user.is_system_admin
 
         async with self.AsyncSession() as session:
+            own_tokens = {
+                row.broker_id
+                for row in await session.scalars(
+                    sa.select(BrokerCredential).where(
+                        BrokerCredential.user_id == self.associated_user_object.id
+                    )
+                )
+                if (row.altdata or {}).get("token")
+            }
+
+            def serialize(broker):
+                data = broker_to_dict(broker, include_altdata)
+                data["needs_own_token"] = (
+                    broker.broker_class.user_credential_schema is not None
+                    and broker.id not in own_tokens
+                )
+                return data
+
             if broker_id is not None:
                 broker = (
                     await session.scalars(
@@ -336,12 +354,10 @@ class BrokerHandler(BaseHandler):
                 ).first()
                 if broker is None:
                     return self.error(f"No broker with id {broker_id}")
-                return self.success(data=broker_to_dict(broker, include_altdata))
+                return self.success(data=serialize(broker))
 
             brokers = (await session.scalars(Broker.select(self.current_user))).all()
-            return self.success(
-                data=[broker_to_dict(b, include_altdata) for b in brokers]
-            )
+            return self.success(data=[serialize(b) for b in brokers])
 
     @permissions(["System admin"])
     async def patch(self, broker_id: int, *, body: BrokerPatchBody = None):

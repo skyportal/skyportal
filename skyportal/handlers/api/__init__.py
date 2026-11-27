@@ -26,7 +26,11 @@ from .assistant import (
     AssistantMessageHandler,
     AssistantUsageHandler,
 )
-from .assistant_query import AssistantQueryHandler, AssistantQuerySubscriptionHandler
+from .assistant_query import (
+    AssistantQueryHandler,
+    AssistantQueryRunHandler,
+    AssistantQuerySubscriptionHandler,
+)
 from .broker import (
     BrokerAlertsHandler,
     BrokerConeSearchHandler,
