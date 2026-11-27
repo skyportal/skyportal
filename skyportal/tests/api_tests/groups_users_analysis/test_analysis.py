@@ -1734,7 +1734,7 @@ def test_default_analysis_on_spectrum_group_mismatch(
 def test_spectrum_analysis_excludes_shared_groups(
     analysis_service_token,
     analysis_token,
-    upload_data_token,
+    upload_data_token_two_groups,
     public_group,
     public_group2,
     public_source,
@@ -1767,21 +1767,36 @@ def test_spectrum_analysis_excludes_shared_groups(
 
     spectrum = {
         "obj_id": str(public_source.id),
-        "observed_at": "2020-01-01T00:00:00",
         "instrument_id": lris.id,
         "wavelengths": [664, 665, 666],
         "fluxes": [234.2, 232.1, 235.3],
     }
-    for ids in ([public_group.id, public_group2.id], [public_group.id]):
-        status, data = api(
-            "POST",
-            "spectrum",
-            data={**spectrum, "group_ids": ids},
-            token=upload_data_token,
-        )
-        assert status == 200, data
-        if len(ids) == 1:
-            allowed_spectrum_id = data["data"]["id"]
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            **spectrum,
+            "observed_at": "2020-01-01T00:00:00",
+            "group_ids": [public_group.id, public_group2.id],
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200, data
+    excluded_spectrum_id = data["data"]["id"]
+
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            **spectrum,
+            "observed_at": "2020-01-02T00:00:00",
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200, data
+    allowed_spectrum_id = data["data"]["id"]
+    assert allowed_spectrum_id != excluded_spectrum_id
 
     for _ in range(20):
         status, data = api(
