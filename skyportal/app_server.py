@@ -24,6 +24,7 @@ from skyportal.handlers.api import (
     AnalysisUploadOnlyHandler,
     AnalysisWebhookHandler,
     AnnotationHandler,
+    ArchivalRvHandler,
     AssignmentHandler,
     AssistantConversationHandler,
     AssistantMessageHandler,
@@ -722,6 +723,7 @@ skyportal_handlers = [
     (r"/api/spectra/synthphot(/[0-9]+)?", SyntheticPhotometryHandler),
     (r"/api/spectra/range(/.*)?", SpectrumRangeHandler),
     # FIXME: TODO: Deprecated, to be removed in an upcoming release
+    (r"/api/sources/([^/]+)/archival_rv", ArchivalRvHandler),
     (r"/api/spectrum(/[0-9]+)?", SpectrumHandler),
     (r"/api/spectrum/parse/ascii", SpectrumASCIIFileParser),
     (r"/api/spectrum/ascii(/[0-9]+)?", SpectrumASCIIFileHandler),

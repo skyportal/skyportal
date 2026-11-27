@@ -172,6 +172,15 @@ ingestion is consuming.
 - `GET /api/internal/broker_apis`, capabilities + config schema of every
   registered provider (for the frontend).
 
+## Archival radial velocity pilot
+
+Set `boom.archival_rv_broker_id` to the ID of an active BOOM broker whose
+deployment has ingested the `Archival_RV_Pilot_v1` catalog. This enables the
+archival search under Spectroscopy on SkyPortal source pages. The user must
+have access to both the source and the broker. The search shows visit RVs and
+Fermi localization matches. Select an observation to fetch its spectrum from
+the originating survey and overlay it with other selected observations.
+
 ## Writing a provider
 
 1. Add `skyportal/broker_apis/mybroker.py` with a `MYBROKER(BrokerAPI)` class
