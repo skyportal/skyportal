@@ -35,6 +35,32 @@ def _kafka_topic(tag, survey):
     return f"fink_{tag}_{survey.lower()}"
 
 
+def _fetch_full_history(broker, object_id, survey):
+    """Full detection history for one object, as the standard alert shape.
+
+    LSST reads from ``/api/v1/sources``, ZTF from ``/api/v1/objects``. Returns
+    None when the upstream has no rows for the id, so callers can fall back to
+    whatever partial data they already hold.
+    """
+    if survey.upper() == "LSST":
+        rows = _fink_post(
+            broker,
+            "api/v1/sources",
+            {"diaObjectId": str(object_id), "output-format": "json"},
+        )
+        if not rows:
+            return None
+        return _normalize_fink_lsst(object_id, rows)
+    rows = _fink_post(
+        broker,
+        "api/v1/objects",
+        {"objectId": str(object_id), "output-format": "json"},
+    )
+    if not rows:
+        return None
+    return _normalize_fink_object(object_id, rows)
+
+
 async def _run_backfill(broker, filter_row, limit, stop=None, on_progress=None):
     """Ingest Fink's stored matches for one filter's tag. Returns
     ``(ingested, failed, found)``."""
@@ -59,24 +85,31 @@ async def _run_backfill(broker, filter_row, limit, stop=None, on_progress=None):
         "api/v1/tags",
         {"tag": topic, "n": limit, "output-format": "json"},
     )
-    # One row per diaSource; group by diaObjectId so the LSST normalizer can
-    # reshape each object's rows into the standard alert shape.
-    by_obj: dict = {}
+    # /api/v1/tags returns only the alerts that triggered the tag; the full
+    # detection history for each object lives at /api/v1/sources. Collect the
+    # unique diaObjectIds here and fetch each one's full LC below.
+    oids = []
+    seen = set()
     for r in rows or []:
         oid = r.get("r:diaObjectId")
-        if oid is not None:
-            by_obj.setdefault(str(oid), []).append(r)
+        if oid is not None and str(oid) not in seen:
+            seen.add(str(oid))
+            oids.append(str(oid))
     log(
         f"Fink backfill (broker {broker.id}, filter {filter_row.id}): "
-        f"{len(by_obj)} objects to ingest"
+        f"{len(oids)} objects to ingest"
     )
     survey = _fink_survey(broker)
     ingested = failed = 0
-    for oid, rs in by_obj.items():
+    for oid in oids:
         if stop is not None and stop.is_set():
             break
-        data = _normalize_fink_lsst(oid, rs)
         try:
+            data = await asyncio.to_thread(_fetch_full_history, broker, oid, survey)
+            if data is None or not (data.get("candidate") or {}).get("ra"):
+                failed += 1
+                log(f"Fink backfill: no sources for {oid}, skipping")
+                continue
             async with async_plain_session_factory() as session:
                 user = await session.scalar(sa.select(User).where(User.id == 1))
                 await save_object_as_candidate(
@@ -92,12 +125,12 @@ async def _run_backfill(broker, filter_row, limit, stop=None, on_progress=None):
             log(f"Fink backfill could not ingest {oid}: {e}")
             failed += 1
         if on_progress is not None:
-            on_progress(ingested, failed, len(by_obj))
+            on_progress(ingested, failed, len(oids))
     log(
         f"Fink backfill (broker {broker.id}, filter {filter_row.id}): "
-        f"{ingested} ingested, {failed} failed, {len(by_obj)} found"
+        f"{ingested} ingested, {failed} failed, {len(oids)} found"
     )
-    return ingested, failed, len(by_obj)
+    return ingested, failed, len(oids)
 
 
 def _decode_fink_message(msg):
@@ -642,6 +675,20 @@ class FINKBROKER(BrokerAPI):
                 data, candid = FINKBROKER._normalize(survey, alert)
                 if data is None:
                     continue
+                # Enrich with the full detection history: a Kafka message
+                # carries one diaSource, but the SP candidate needs the whole
+                # LC so points older than Kafka retention aren't lost.
+                try:
+                    full = await asyncio.to_thread(
+                        _fetch_full_history, broker, data["objectId"], survey
+                    )
+                    if full is not None:
+                        data = full
+                except Exception as e:
+                    log(
+                        f"Fink ingestion: no full history for "
+                        f"{data.get('objectId')}: {e}"
+                    )
                 try:
                     async with async_plain_session_factory() as session:
                         user = await session.scalar(sa.select(User).where(User.id == 1))
