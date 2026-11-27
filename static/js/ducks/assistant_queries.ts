@@ -18,12 +18,25 @@ export interface AssistantQuery {
   owner_id: number;
   analysis_service_match: string | null;
   notify_groups: number[] | null;
-  context_type: string;
+  context_type: "source" | "gcn_event";
+  source_id: string | null;
+  interval_minutes: number | null;
+  next_run_at: string | null;
+  last_run_at: string | null;
+  last_run_count: number | null;
   active: boolean;
   dry_run: boolean;
   subscriber_count: number;
   subscribed: boolean;
   is_owner: boolean;
+}
+
+interface AssistantQueryRun {
+  id: number;
+  context_id: string;
+  created_at: string;
+  run_status: "queued" | "completed" | "failed";
+  result: string | null;
 }
 
 export const assistantQueriesApi = skyportalApi.injectEndpoints({
@@ -50,6 +63,20 @@ export const assistantQueriesApi = skyportalApi.injectEndpoints({
         body,
       }),
       invalidatesTags: ["AssistantQueries"],
+    }),
+    runAssistantQuery: build.mutation<
+      { queued: number; failed: number },
+      number
+    >({
+      query: (id) => ({
+        url: `api/assistant_queries/${id}/runs`,
+        method: "POST",
+      }),
+      invalidatesTags: ["AssistantQueries"],
+    }),
+    getAssistantQueryRuns: build.query<AssistantQueryRun[], number>({
+      query: (id) => ({ url: `api/assistant_queries/${id}/runs` }),
+      providesTags: ["AssistantQueries"],
     }),
     deleteAssistantQuery: build.mutation<unknown, number>({
       query: (id) => ({
@@ -81,6 +108,8 @@ invalidateOnMessage("skyportal/REFRESH_ASSISTANT_QUERIES", () => [
 
 export const {
   useGetAssistantQueriesQuery,
+  useGetAssistantQueryRunsQuery,
+  useRunAssistantQueryMutation,
   useCreateAssistantQueryMutation,
   useUpdateAssistantQueryMutation,
   useDeleteAssistantQueryMutation,

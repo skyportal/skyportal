@@ -77,6 +77,8 @@ class AssistantMessage(Base):
         "the answer rests on rather than taking the prose for it.",
     )
 
+    run_status = sa.Column(sa.String, nullable=True, doc="Status of a task message.")
+
     proposal = sa.Column(
         JSONB,
         nullable=True,
@@ -108,8 +110,7 @@ class AssistantQuery(Base):
     A completed analysis whose service name contains ``analysis_service_match``
     triggers a skybot run of ``prompt`` on the source; the answer is delivered to
     the subscribers who are members of ``group``, plus any always-on
-    ``notify_groups``. Personal one-off schedules stay in RecurringAPI; this is
-    the shared, subscribable kind.
+    ``notify_groups``. Interval and manual runs use the same assistant worker.
     """
 
     __tablename__ = "assistantqueries"
@@ -145,7 +146,7 @@ class AssistantQuery(Base):
         sa.String,
         nullable=False,
         server_default="source",
-        doc="Resource the query runs on (currently 'source').",
+        doc="Resource the query runs on: source or gcn_event.",
     )
 
     analysis_service_match = sa.Column(
@@ -155,6 +156,14 @@ class AssistantQuery(Base):
         doc="Substring of an analysis service name; a completed matching analysis "
         "triggers the query. NULL for a query that is not analysis-triggered.",
     )
+
+    source_id = sa.Column(
+        sa.String, nullable=True, doc="Source for interval and manual runs."
+    )
+    interval_minutes = sa.Column(sa.Integer, nullable=True)
+    next_run_at = sa.Column(sa.DateTime, nullable=True, index=True)
+    last_run_at = sa.Column(sa.DateTime, nullable=True)
+    last_run_count = sa.Column(sa.Integer, nullable=True)
 
     notify_groups = sa.Column(
         JSONB,

@@ -1,11 +1,31 @@
+from typing import Literal
+
 import sqlalchemy as sa
 from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token
+from baselayer.app.env import load_env
+from baselayer.app.models import new_async_session
 
-from ...models import AssistantQuery, AssistantQuerySubscription, GroupUser
+from ...models import (
+    AssistantMessage,
+    AssistantQuery,
+    AssistantQuerySubscription,
+    GroupUser,
+)
+from ...utils.assistant import is_enabled
+from ...utils.assistant_schedule import (
+    dispatch_query_jobs,
+    queue_query_task,
+    saved_source,
+    task_channel_prefix,
+    update_schedule,
+)
 from ...utils.data_access import accessible_group_ids_async
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
+
+_, cfg = load_env()
 
 
 class AssistantQueryPostBody(BaseModel):
@@ -27,9 +47,11 @@ class AssistantQueryPostBody(BaseModel):
     notify_groups: list[int] | None = Field(
         default=None, description="Group ids always notified, besides the subscribers."
     )
-    context_type: str = Field(
+    context_type: Literal["source", "gcn_event"] = Field(
         default="source", description="Resource the query runs on."
     )
+    source_id: str | None = None
+    interval_minutes: int | None = Field(default=None, ge=1, le=10080)
     active: bool = Field(default=True, description="Whether the query runs.")
     dry_run: bool = Field(default=False, description="Run but notify no one.")
 
@@ -45,6 +67,9 @@ class AssistantQueryPatchBody(BaseModel):
     prompt: str | None = None
     analysis_service_match: str | None = None
     notify_groups: list[int] | None = None
+    context_type: Literal["source", "gcn_event"] | None = None
+    source_id: str | None = None
+    interval_minutes: int | None = Field(default=None, ge=1, le=10080)
     active: bool | None = None
     dry_run: bool | None = None
 
@@ -55,6 +80,24 @@ async def _can_notify(user_or_token, session, group_ids):
     return set(group_ids) <= set(
         await accessible_group_ids_async(user_or_token, session)
     )
+
+
+async def _validate_scope(session, query, check_source=True):
+    if query.context_type == "gcn_event":
+        if query.analysis_service_match or query.source_id:
+            return "GRB queries use Run now or an interval."
+    elif query.context_type == "source":
+        if query.interval_minutes and not query.source_id:
+            return "An interval requires a source saved to the query's group."
+        if (
+            check_source
+            and query.source_id
+            and not await session.scalar(saved_source(query.group_id, query.source_id))
+        ):
+            return "Select a source saved to the query's group."
+    else:
+        return "Select a valid query scope."
+    return None
 
 
 def _serialize(query, subscriber_ids, user_id):
@@ -69,6 +112,11 @@ def _serialize(query, subscriber_ids, user_id):
         "analysis_service_match": query.analysis_service_match,
         "notify_groups": query.notify_groups,
         "context_type": query.context_type,
+        "source_id": query.source_id,
+        "interval_minutes": query.interval_minutes,
+        "next_run_at": query.next_run_at,
+        "last_run_at": query.last_run_at,
+        "last_run_count": query.last_run_count,
         "active": query.active,
         "dry_run": query.dry_run,
         "subscriber_count": len(subscriber_ids),
@@ -134,8 +182,6 @@ class AssistantQueryHandler(BaseHandler):
           200: {content: {application/json: {schema: Success}}}
         """
         body = self.parse_body(AssistantQueryPostBody)
-        if body.context_type != "source":
-            return self.error(f"Invalid context_type: {body.context_type}")
         user_id = self.associated_user_object.id
         async with self.AsyncSession() as session:
             member = await session.scalar(
@@ -161,9 +207,14 @@ class AssistantQueryHandler(BaseHandler):
                 analysis_service_match=body.analysis_service_match,
                 notify_groups=body.notify_groups,
                 context_type=body.context_type,
+                source_id=body.source_id,
+                interval_minutes=body.interval_minutes,
                 active=body.active,
                 dry_run=body.dry_run,
             )
+            if error := await _validate_scope(session, query):
+                return self.error(error)
+            update_schedule(query, utcnow_naive())
             session.add(query)
             await session.commit()
             self.push_all(action="skyportal/REFRESH_ASSISTANT_QUERIES")
@@ -184,9 +235,9 @@ class AssistantQueryHandler(BaseHandler):
         )
         async with self.AsyncSession() as session:
             query = await session.scalar(
-                AssistantQuery.select(session.user_or_token, mode="update").where(
-                    AssistantQuery.id == query_id
-                )
+                AssistantQuery.select(session.user_or_token, mode="update")
+                .where(AssistantQuery.id == query_id)
+                .with_for_update(of=AssistantQuery)
             )
             if query is None:
                 return self.error("Cannot update this query.", status=403)
@@ -196,8 +247,22 @@ class AssistantQueryHandler(BaseHandler):
                 return self.error(
                     "You can only notify groups you are a member of.", status=403
                 )
+            reschedule = any(
+                updates[key] != getattr(query, key)
+                for key in ("active", "interval_minutes")
+                if key in updates
+            )
+            rescoped = any(
+                updates[key] != getattr(query, key)
+                for key in ("source_id", "context_type", "group_id")
+                if key in updates
+            )
             for field, value in updates.items():
                 setattr(query, field, value)
+            if error := await _validate_scope(session, query, check_source=rescoped):
+                return self.error(error)
+            if reschedule:
+                update_schedule(query, utcnow_naive())
             await session.commit()
             self.push_all(action="skyportal/REFRESH_ASSISTANT_QUERIES")
             return self.success()
@@ -224,6 +289,106 @@ class AssistantQueryHandler(BaseHandler):
             await session.commit()
             self.push_all(action="skyportal/REFRESH_ASSISTANT_QUERIES")
             return self.success()
+
+
+class AssistantQueryRunHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, query_id: int):
+        """
+        ---
+        summary: Run a saved assistant query now
+        description: The owner may run the saved query without changing its schedule.
+        tags: [assistant]
+        responses:
+          200: {content: {application/json: {schema: Success}}}
+        """
+        async with new_async_session() as session:
+            query = await session.scalar(
+                sa.select(AssistantQuery)
+                .where(
+                    AssistantQuery.id == query_id,
+                    AssistantQuery.owner_id == self.associated_user_object.id,
+                )
+                .with_for_update()
+            )
+            if query is None:
+                return self.error("Only the query owner can run it.", status=403)
+            if not is_enabled(cfg):
+                return self.error("No assistant is configured on this instance.")
+            try:
+                jobs = await queue_query_task(
+                    session, query, utcnow_naive(), cfg["misc.public_group_name"]
+                )
+            except ValueError as exc:
+                return self.error(str(exc))
+            await session.commit()
+            dispatched = await dispatch_query_jobs(session, cfg, jobs)
+        self.push_all(action="skyportal/REFRESH_ASSISTANT_QUERIES")
+        return self.success(
+            data={"queued": dispatched, "failed": len(jobs) - dispatched}
+        )
+
+    @auth_or_token
+    async def get(self, query_id: int):
+        """
+        ---
+        summary: List recent interval and manual runs of an assistant query
+        description: Results, including previews, are visible to the query owner.
+        tags: [assistant]
+        responses:
+          200: {content: {application/json: {schema: Success}}}
+        """
+        async with self.AsyncSession() as session:
+            query = await session.scalar(
+                AssistantQuery.select(session.user_or_token).where(
+                    AssistantQuery.id == query_id,
+                    AssistantQuery.owner_id == self.associated_user_object.id,
+                )
+            )
+            if query is None:
+                return self.error("Only the query owner can view runs.", status=403)
+            reply = sa.orm.aliased(AssistantMessage)
+            attempt = sa.orm.aliased(AssistantMessage)
+            next_attempt_id = (
+                sa.select(sa.func.min(attempt.id))
+                .where(
+                    attempt.channel == AssistantMessage.channel,
+                    attempt.id > AssistantMessage.id,
+                    attempt.system.is_(False),
+                )
+                .correlate(AssistantMessage)
+                .scalar_subquery()
+            )
+            reply_text = (
+                sa.select(reply.text)
+                .where(
+                    reply.channel == AssistantMessage.channel,
+                    reply.user_id == AssistantMessage.user_id,
+                    reply.system.is_(True),
+                    reply.id > AssistantMessage.id,
+                    (next_attempt_id.is_(None) | (reply.id < next_attempt_id)),
+                )
+                .order_by(reply.id.desc())
+                .limit(1)
+                .scalar_subquery()
+            )
+            runs = await session.execute(
+                sa.select(
+                    AssistantMessage.id,
+                    AssistantMessage.context_id,
+                    AssistantMessage.created_at,
+                    AssistantMessage.run_status,
+                    reply_text.label("result"),
+                )
+                .where(
+                    AssistantMessage.channel.startswith(task_channel_prefix(query.id)),
+                    AssistantMessage.run_status.is_not(None),
+                    AssistantMessage.system.is_(False),
+                )
+                .order_by(AssistantMessage.id.desc())
+                .limit(10)
+            )
+            return self.success(data=[dict(run._mapping) for run in runs])
 
 
 class AssistantQuerySubscriptionHandler(BaseHandler):

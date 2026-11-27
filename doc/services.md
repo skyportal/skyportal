@@ -81,6 +81,30 @@ worth listing are those that poll for something you do not use.
 | `ngsf_analysis_service`            | [Analysis](analysis) backend: NGSF spectral fitting                                     | No `AnalysisService` record points at it          |
 | `spectral_cube_analysis_service`   | [Analysis](analysis) backend: spectral cube extraction                                  | No `AnalysisService` record points at it          |
 
+## Scheduled Assistant Queries
+
+With the assistant and `recurring_apis` services enabled, a query owner can set
+an interval on **Assistant Queries**. **Run now** checks the saved query without
+changing its next scheduled check. **History** shows the latest jobs, including
+results produced in dry run. The `skybot` account and query owner need to belong
+to the query's group.
+
+For a GRANDMA GRB review, choose **Recent GRBs**, select the GRANDMA group, set
+an interval of five minutes, and start with **Dry run**. An example prompt:
+
+> Summarize the reported localization, T90, and optical evidence. Compare a
+> reported localization radius with the working cut of less than 12 arcmin.
+> Include its confidence level when available. Attribute measurements to their
+> Notice or Circular. Distinguish optical detections from upper limits.
+> Report missing T90 as unknown and leave the follow-up decision with the
+> shifter.
+
+Each check considers GRB-tagged events from the previous two days that the group
+can see, including sitewide events. Under the same prompt and dry-run setting,
+an event is reviewed again only when its localizations or circular extractions
+change. Live results appear as group-visible bot comments on the GCN event.
+The review uses the evidence already linked in SkyPortal.
+
 ## Paper Corner
 
 Set `paper_corner.ads_token` in the deployment's private config. Paper Corner

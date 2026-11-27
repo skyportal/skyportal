@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 from datetime import timedelta
@@ -9,6 +10,7 @@ from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.models import DBSession, RecurringAPI, User, UserNotification
 from skyportal.tests import api
+from skyportal.utils.assistant_schedule import run_due_queries
 from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import HOST, check_loaded
 
@@ -36,8 +38,10 @@ def record_outcome(session, recurring_api, text, notify=True):
     session.commit()
 
 
-def perform_api_calls():
-    sleep_time = MAX_SLEEP
+def perform_api_calls(assistant_sleep=None):
+    sleep_time = (
+        MAX_SLEEP if assistant_sleep is None else min(MAX_SLEEP, assistant_sleep)
+    )
     now = utcnow_naive()
     with DBSession() as session:
         try:
@@ -141,11 +145,17 @@ def perform_api_calls():
 
 @check_loaded(logger=log)
 def service(*args, **kwargs):
-    while True:
-        try:
-            perform_api_calls()
-        except Exception as e:
-            log(e)
+    with asyncio.Runner() as runner:
+        while True:
+            assistant_sleep = None
+            try:
+                assistant_sleep = runner.run(run_due_queries(cfg))
+            except Exception as exc:
+                log(f"Scheduled assistant queries failed: {exc}")
+            try:
+                perform_api_calls(assistant_sleep)
+            except Exception as exc:
+                log(exc)
 
 
 if __name__ == "__main__":

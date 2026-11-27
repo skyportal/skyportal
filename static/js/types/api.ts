@@ -22742,6 +22742,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/assistant_queries/{query_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List recent interval and manual runs of an assistant query
+         * @description Results, including previews, are visible to the query owner.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    query_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Run a saved assistant query now
+         * @description The owner may run the saved query without changing its schedule.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    query_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/assistant_queries/{query_id}/subscription": {
         parameters: {
             query?: never;
@@ -26485,6 +26549,8 @@ export interface components {
             tool_calls?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Status of a task message. */
+            run_status?: string | null;
             /** @description A filter pipeline the assistant arrived at, with whatever preview it ran, so the page can offer it for saving. Read out of tool_calls. */
             proposal?: {
                 [key: string]: unknown;
@@ -26529,6 +26595,8 @@ export interface components {
             tool_calls?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Status of a task message. */
+            run_status?: string | null;
             /** @description A filter pipeline the assistant arrived at, with whatever preview it ran, so the page can offer it for saving. Read out of tool_calls. */
             proposal?: {
                 [key: string]: unknown;
@@ -26564,10 +26632,18 @@ export interface components {
             description?: string | null;
             /** @description Instruction run by the assistant. */
             prompt: string;
-            /** @description Resource the query runs on (currently 'source'). */
+            /** @description Resource the query runs on: source or gcn_event. */
             context_type?: string;
             /** @description Substring of an analysis service name; a completed matching analysis triggers the query. NULL for a query that is not analysis-triggered. */
             analysis_service_match?: string | null;
+            /** @description Source for interval and manual runs. */
+            source_id?: string | null;
+            interval_minutes?: number | null;
+            /** Format: date-time */
+            next_run_at?: string | null;
+            /** Format: date-time */
+            last_run_at?: string | null;
+            last_run_count?: number | null;
             /** @description Group ids always notified with the answer, besides the subscribers. */
             notify_groups?: {
                 [key: string]: unknown;
@@ -26605,10 +26681,18 @@ export interface components {
             description?: string | null;
             /** @description Instruction run by the assistant. */
             prompt: string;
-            /** @description Resource the query runs on (currently 'source'). */
+            /** @description Resource the query runs on: source or gcn_event. */
             context_type?: string;
             /** @description Substring of an analysis service name; a completed matching analysis triggers the query. NULL for a query that is not analysis-triggered. */
             analysis_service_match?: string | null;
+            /** @description Source for interval and manual runs. */
+            source_id?: string | null;
+            interval_minutes?: number | null;
+            /** Format: date-time */
+            next_run_at?: string | null;
+            /** Format: date-time */
+            last_run_at?: string | null;
+            last_run_count?: number | null;
             /** @description Group ids always notified with the answer, besides the subscribers. */
             notify_groups?: {
                 [key: string]: unknown;
@@ -52090,8 +52174,19 @@ export interface components {
              * Context Type
              * @description Resource the query runs on.
              * @default source
+             * @enum {string}
              */
-            context_type: string;
+            context_type: "source" | "gcn_event";
+            /**
+             * Source Id
+             * @default null
+             */
+            source_id: string | null;
+            /**
+             * Interval Minutes
+             * @default null
+             */
+            interval_minutes: number | null;
             /**
              * Active
              * @description Whether the query runs.
