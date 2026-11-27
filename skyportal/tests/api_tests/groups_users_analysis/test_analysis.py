@@ -1731,6 +1731,88 @@ def test_default_analysis_on_spectrum_group_mismatch(
         time.sleep(1)
 
 
+def test_spectrum_analysis_excludes_shared_groups(
+    analysis_service_token,
+    analysis_token,
+    upload_data_token_two_groups,
+    public_group,
+    public_group2,
+    public_source,
+    lris,
+):
+    rule = {"spectrum": "any", "group_id": public_group.id, "excluded_group_ids": []}
+    service_id = _make_spectrum_default_service(
+        analysis_service_token, analysis_token, public_group, rule
+    )
+    url = f"analysis_service/{service_id}/default_analysis"
+    status, data = api("GET", url, token=analysis_token)
+    assert status == 200, data
+    rule_id = data["data"][0]["id"]
+
+    for invalid in (public_group2.id, [True], [0]):
+        status, data = api(
+            "PATCH",
+            f"{url}/{rule_id}",
+            data={"source_filter": {**rule, "excluded_group_ids": invalid}},
+            token=analysis_token,
+        )
+        assert status == 400, data
+    status, data = api(
+        "PATCH",
+        f"{url}/{rule_id}",
+        data={"source_filter": {**rule, "excluded_group_ids": [public_group2.id]}},
+        token=analysis_token,
+    )
+    assert status == 200, data
+
+    spectrum = {
+        "obj_id": str(public_source.id),
+        "instrument_id": lris.id,
+        "wavelengths": [664, 665, 666],
+        "fluxes": [234.2, 232.1, 235.3],
+    }
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            **spectrum,
+            "observed_at": "2020-01-01T00:00:00",
+            "group_ids": [public_group.id, public_group2.id],
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200, data
+    excluded_spectrum_id = data["data"]["id"]
+
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            **spectrum,
+            "observed_at": "2020-01-02T00:00:00",
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200, data
+    allowed_spectrum_id = data["data"]["id"]
+    assert allowed_spectrum_id != excluded_spectrum_id
+
+    for _ in range(20):
+        status, data = api(
+            "GET",
+            "obj/analysis",
+            params={"objID": str(public_source.id), "analysisServiceID": service_id},
+            token=analysis_token,
+        )
+        assert status == 200, data
+        if data["data"]:
+            break
+        time.sleep(1)
+    assert len(data["data"]) == 1, data
+    assert data["data"][0]["input_filters"]["spectra"]["ids"] == [allowed_spectrum_id]
+
+
 def test_default_analysis_multiple_per_service(
     analysis_service_token,
     analysis_token,

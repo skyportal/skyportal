@@ -1172,8 +1172,7 @@ def create_default_analysis_on_spectrum(mapper, connection, target):
     ``source_filter={"spectrum": "any"}`` auto-fires here for every new spectrum --
     the hook for auto-classifying each uploaded spectrum (e.g. NGSF/SNID-SAGE),
     complementing the save-to-group trigger which only fires at source-save time.
-    Adding ``"group_id": <id>`` restricts it to spectra shared with that group, and
-    ``"wavelength_range": [min, max]`` (Angstrom) to spectra overlapping that range."""
+    A rule can require a group, exclude groups, or require wavelength overlap."""
 
     @event.listens_for(inspect(target).session, "after_flush", once=True)
     def receive_after_flush(session, context):
@@ -1191,11 +1190,12 @@ def create_default_analysis_on_spectrum(mapper, connection, target):
             if not defaults:
                 return
 
-            # Only load the spectrum's groups if a default restricts by group_id.
             spectrum_group_ids = None
             for default_analysis in defaults:
-                required_group = default_analysis.source_filter.get("group_id")
-                if required_group is not None:
+                source_filter = default_analysis.source_filter
+                required_group = source_filter.get("group_id")
+                excluded_groups = source_filter.get("excluded_group_ids") or []
+                if required_group is not None or excluded_groups:
                     if spectrum_group_ids is None:
                         spectrum_group_ids = set(
                             session.scalars(
@@ -1204,11 +1204,12 @@ def create_default_analysis_on_spectrum(mapper, connection, target):
                                 )
                             ).all()
                         )
-                    if int(required_group) not in spectrum_group_ids:
+                    if (
+                        required_group is not None
+                        and int(required_group) not in spectrum_group_ids
+                    ) or spectrum_group_ids.intersection(excluded_groups):
                         continue
-                wavelength_range = default_analysis.source_filter.get(
-                    "wavelength_range"
-                )
+                wavelength_range = source_filter.get("wavelength_range")
                 if wavelength_range is not None:
                     wavelengths = np.asarray(target.wavelengths, dtype=float)
                     if (

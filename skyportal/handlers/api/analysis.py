@@ -136,6 +136,15 @@ def valid_wavelength_range(value):
     )
 
 
+def valid_spectrum_group_exclusions(source_filter):
+    group_ids = source_filter["excluded_group_ids"]
+    return (
+        source_filter.get("spectrum") == "any"
+        and isinstance(group_ids, list)
+        and all(type(group_id) is int and group_id > 0 for group_id in group_ids)
+    )
+
+
 def valid_url(trial_url):
     """
     determine if the URL is valid
@@ -2555,12 +2564,18 @@ class DefaultAnalysisHandler(BaseHandler):
                     set(DEFAULT_ANALYSIS_FILTER_TYPES.keys())
                     | set(DEFAULT_ANALYSIS_SCALAR_FILTERS.keys())
                     | set(DEFAULT_ANALYSIS_LIST_FILTERS.keys())
-                    | {"wavelength_range"}
+                    | {"wavelength_range", "excluded_group_ids"}
                 ):
                     return self.error(f"Invalid source_filter: {source_filter}.")
 
                 for key, value in source_filter.items():
-                    if key == "wavelength_range":
+                    if key == "excluded_group_ids":
+                        if not valid_spectrum_group_exclusions(source_filter):
+                            return self.error(
+                                "Invalid source_filter. Key excluded_group_ids needs a "
+                                "list of positive integer group IDs and spectrum set to any."
+                            )
+                    elif key == "wavelength_range":
                         if not valid_wavelength_range(value):
                             return self.error(
                                 "Invalid source_filter. Key wavelength_range must be [min, max]."
@@ -2714,11 +2729,17 @@ class DefaultAnalysisHandler(BaseHandler):
                     if not set(source_filter.keys()).issubset(
                         set(DEFAULT_ANALYSIS_FILTER_TYPES.keys())
                         | set(DEFAULT_ANALYSIS_SCALAR_FILTERS.keys())
-                        | {"wavelength_range"}
+                        | {"wavelength_range", "excluded_group_ids"}
                     ):
                         return self.error(f"Invalid source_filter: {source_filter}.")
                     for key, value in source_filter.items():
-                        if key == "wavelength_range":
+                        if key == "excluded_group_ids":
+                            if not valid_spectrum_group_exclusions(source_filter):
+                                return self.error(
+                                    "Invalid source_filter. Key excluded_group_ids needs a "
+                                    "list of positive integer group IDs and spectrum set to any."
+                                )
+                        elif key == "wavelength_range":
                             if not valid_wavelength_range(value):
                                 return self.error(
                                     "Invalid source_filter. Key wavelength_range must be [min, max]."
