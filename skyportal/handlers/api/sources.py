@@ -2635,11 +2635,19 @@ async def get_sources(
                 for obj in objs:
                     obj.pop("groups", None)
             startTime = time.time()
-            obj_coords = np.array([[obj["ra"], obj["dec"]] for obj in objs])
-            obj_coords_gal = radec2lb(obj_coords[:, 0], obj_coords[:, 1])
+            obj_coords = np.array(
+                [[obj["ra"], obj["dec"]] for obj in objs], dtype=float
+            ).reshape(-1, 2)
+            has_position = np.isfinite(obj_coords).all(axis=1)
+            gal_lon, gal_lat = radec2lb(*obj_coords[has_position].T)
+            for obj in objs:
+                obj["gal_lon"] = obj["gal_lat"] = None
+            for i, lon, lat in zip(
+                np.flatnonzero(has_position), gal_lon, gal_lat, strict=True
+            ):
+                objs[i]["gal_lon"] = lon
+                objs[i]["gal_lat"] = lat
             for i in range(len(objs)):
-                objs[i]["gal_lon"] = obj_coords_gal[0][i]
-                objs[i]["gal_lat"] = obj_coords_gal[1][i]
                 redshift = objs[i]["redshift"]
                 luminosity_distance = get_luminosity_distance(objs[i])
                 objs[i]["luminosity_distance"] = luminosity_distance
@@ -2777,32 +2785,31 @@ async def get_sources(
                         host.id: host.to_dict() for host in hosts_result.unique().all()
                     }
 
-                    objs_with_host = [
-                        (i, obj["host_id"], (obj["ra"], obj["dec"]))
-                        for i, obj in enumerate(objs)
-                        if obj["host_id"] in hosts_by_id
-                    ]
-                if host_ids and objs_with_host:
-                    objs_with_host_coords = np.array([obj[2] for obj in objs_with_host])
+                    for i, obj in enumerate(objs):
+                        host = hosts_by_id.get(obj["host_id"])
+                        if host is not None:
+                            obj["host"] = host
+                            if has_position[i]:
+                                objs_with_host.append(i)
 
-                    hosts = [hosts_by_id[obj[1]] for obj in objs_with_host]
+                if objs_with_host:
                     hosts_coords = np.array(
-                        [[host["ra"], host["dec"]] for host in hosts]
+                        [
+                            [objs[i]["host"]["ra"], objs[i]["host"]["dec"]]
+                            for i in objs_with_host
+                        ],
+                        dtype=float,
                     )
-
-                    # now we can compute the offset for all of them at once
+                    has_host_position = np.isfinite(hosts_coords).all(axis=1)
+                    indices = np.asarray(objs_with_host)[has_host_position]
                     offsets = (
                         great_circle_distance(
-                            objs_with_host_coords[:, 0],
-                            objs_with_host_coords[:, 1],
-                            hosts_coords[:, 0],
-                            hosts_coords[:, 1],
+                            *obj_coords[indices].T, *hosts_coords[has_host_position].T
                         )
                         * 3600
-                    )  # in arcsec
-                    for i, offset in enumerate(offsets):
-                        objs[objs_with_host[i][0]]["host"] = hosts[i]
-                        objs[objs_with_host[i][0]]["host_offset"] = offset
+                    )  # arcsec
+                    for i, offset in zip(indices, offsets, strict=True):
+                        objs[i]["host_offset"] = offset
 
                 endTime = time.time()
                 if verbose:
@@ -3056,7 +3063,9 @@ async def get_sources(
             if includeGeoJSON:
                 startTime = time.time()
                 features = []
-                for source in data["sources"]:
+                for source, positioned in zip(objs, has_position, strict=True):
+                    if not positioned:
+                        continue
                     source_name = ", ".join(
                         [
                             source["id"],

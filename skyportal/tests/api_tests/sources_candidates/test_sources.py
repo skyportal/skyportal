@@ -11,7 +11,7 @@ from astropy.time import Time
 from dateutil import parser
 from tdtax import __version__, taxonomy
 
-from skyportal.models import cosmo
+from skyportal.models import DBSession, cosmo
 from skyportal.tests import api
 
 from ....utils.naive_datetime import utcnow_naive
@@ -21,6 +21,41 @@ def test_source_list(view_only_token):
     status, data = api("GET", "sources", token=view_only_token)
     assert status == 200
     assert data["status"] == "success"
+
+
+def test_group_sources_list_includes_source_without_coordinates(
+    view_only_token, public_group, public_galaxy, public_source, public_source_no_data
+):
+    public_source.ra = None
+    public_source.host_id = public_galaxy.id
+    public_source_no_data.host_id = public_galaxy.id
+    DBSession.commit()
+
+    status, response = api(
+        "GET",
+        "sources",
+        params={
+            "group_ids": [public_group.id],
+            "includeHosts": True,
+            "includeGeoJSON": True,
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    data = response["data"]
+    sources = {source["id"]: source for source in data["sources"]}
+    missing_position = sources[public_source.id]
+    assert missing_position["gal_lon"] is None
+    assert missing_position["gal_lat"] is None
+    assert missing_position["host"]["id"] == public_galaxy.id
+    assert missing_position["host_offset"] is None
+    at_zero = sources[public_source_no_data.id]
+    assert np.isfinite(
+        [at_zero["gal_lon"], at_zero["gal_lat"], at_zero["host_offset"]]
+    ).all()
+    assert {
+        feature["properties"]["url"] for feature in data["geojson"]["features"]
+    } == {f"/source/{public_source_no_data.id}"}
 
 
 def test_source_existence(view_only_token, public_source):
