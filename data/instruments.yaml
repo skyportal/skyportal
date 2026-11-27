@@ -1130,6 +1130,19 @@
   telescope_id: =Fraunhofer
   filters:
     ["2massh", "2massj", "sdssg", "sdssi", "sdssr", "sdssu", "sdssz", "2massks"]
+  api_classname: WENDELSTEINAPI
+- name: SEDM-FTW
+  type: imaging spectrograph
+  band: Optical
+  telescope_id: =Fraunhofer
+  filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
+  api_classname: WENDELSTEINAPI
+- name: Wendelstein QHY600
+  type: imager
+  band: Optical
+  telescope_id: =Wendelstein43
+  filters: ["sdssg", "sdssi", "sdssr"]
+  api_classname: WENDELSTEINAPI
 - name: Wendelstein WWFI
   type: imager
   band: Optical
