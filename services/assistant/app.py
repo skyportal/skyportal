@@ -400,8 +400,10 @@ def answer_from_facts(obj_id, analysis_id, token):
     if source.get("ra") is not None and source.get("dec") is not None:
         brokers = read("list_brokers") or []
         for broker in sorted(brokers, key=lambda b: b.get("name") != "BOOM"):
-            if not broker.get("active") or "cone_search" not in (
-                broker.get("supports") or []
+            if (
+                not broker.get("active")
+                or broker.get("needs_own_token")
+                or "cone_search" not in (broker.get("supports") or [])
             ):
                 continue
             found = read(

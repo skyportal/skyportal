@@ -1307,7 +1307,9 @@ def _summarize_alerts(data, full):
     "list_brokers",
     "The brokers this token can query, with the ids the other broker tools "
     "need and the operations each one supports. Start here: broker_id is not "
-    "guessable, and a broker only answers the operations it lists.",
+    "guessable, and a broker only answers the operations it lists. A broker "
+    "marked needs_own_token answers nothing until the user adds their own API "
+    "token on its page, so do not query it.",
     {},
 )
 async def list_brokers(handler, args):
@@ -1322,6 +1324,7 @@ async def list_brokers(handler, args):
             "supports": sorted(
                 name for name, ok in (b.get("capabilities") or {}).items() if ok is True
             ),
+            **({"needs_own_token": True} if b.get("needs_own_token") else {}),
         }
         for b in (brokers or [])
     ]
