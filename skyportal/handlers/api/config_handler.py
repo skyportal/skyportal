@@ -138,6 +138,7 @@ class ConfigHandler(BaseHandler):
                 "userApplicationsEnabled": user_applications_enabled(),
                 "canDecideUserApplications": may_decide(self.current_user),
                 "assistantEnabled": assistant_enabled(cfg),
+                "archivalRvEnabled": cfg["boom.archival_rv_broker_id"] is not None,
                 "paperCornerEnabled": paper_corner_enabled(cfg),
                 "cosmology": str(cosmo),
                 "cosmologyParams": cosmology_parameter_rows(cosmo),

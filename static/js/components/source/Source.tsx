@@ -97,6 +97,7 @@ import AnalysisForm from "../analysis/AnalysisForm";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "../photometry/PhotometryTable";
 import FavoritesButton from "../listing/FavoritesButton";
+import ArchivalRv from "./ArchivalRv";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import Reminders from "../Reminders";
 import QuickSaveButtons from "./QuickSaveSource";
@@ -1400,6 +1401,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     </Link>
                   )}
                 </div>
+                <ArchivalRv key={source.id} sourceId={source.id} />
               </Grid>
             </AccordionDetails>
           </Accordion>

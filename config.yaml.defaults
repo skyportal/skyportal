@@ -1095,6 +1095,8 @@ brokers:
 # `filter_modules_mongodb_uri`/`filter_modules_database` keys on the broker
 # record's altdata; left unset, the builder shows no saved modules.
 boom:
+  # Active BOOM broker serving the staged archival RV pilot catalog.
+  archival_rv_broker_id: null
   filter_modules:
     mongodb_uri: null
     database: null

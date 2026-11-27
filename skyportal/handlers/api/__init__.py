@@ -21,6 +21,7 @@ from .annotation_services import (
     SpherexQueryHandler,
     VizierQueryHandler,
 )
+from .archival_rv import ArchivalRvHandler
 from .assistant import (
     AssistantConversationHandler,
     AssistantMessageHandler,
