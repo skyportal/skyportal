@@ -57,6 +57,7 @@ import SourcePapers from "./SourcePapers";
 import StarList from "../StarList";
 import FollowupRequestForm from "../followup_request/FollowupRequestForm";
 import FollowupRequestLists from "../followup_request/FollowupRequestLists";
+import { statusColor } from "../followup_request/status";
 import AssignmentForm from "../observing_run/AssignmentForm";
 import AssignmentList from "../observing_run/AssignmentList";
 import SourceNotification from "./SourceNotification";
@@ -349,6 +350,22 @@ const SourceContent = ({ source }: SourceContentProps) => {
           ),
       ) ?? [],
     [source.duplicates, source.associated_objs],
+  );
+
+  const followupInstrumentIds = useMemo(
+    () =>
+      new Set<number>([
+        ...(source.followup_requests || [])
+          .filter(
+            (r: any) =>
+              r.allocation?.types?.includes("triggered") &&
+              r.payload?.request_type !== "forced_photometry" &&
+              statusColor(r.status) !== "error",
+          )
+          .map((r: any) => r.allocation.instrument_id),
+        ...(source.assignments || []).map((a: any) => a.run?.instrument_id),
+      ]),
+    [source.followup_requests, source.assignments],
   );
 
   const spectrumAnnotations: any[] = [];
@@ -848,7 +865,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <Box className={classes.linkedObjs}>
                 <FieldLabel>Associated</FieldLabel>
                 <Box className={classes.linkedObjList}>
-                  <AssociatedObjs objs={source.associated_objs} />
+                  <AssociatedObjs
+                    objs={source.associated_objs}
+                    ownInstrumentIds={followupInstrumentIds}
+                  />
                 </Box>
               </Box>
             )}

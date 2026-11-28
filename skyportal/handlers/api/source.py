@@ -910,6 +910,55 @@ async def get_source(
                         "survey": survey_from_object_id(obj.id),
                     }
                 )
+        followup = {a["obj_id"]: [] for a in associated_objs}
+        if followup:
+            requests_result = await session.scalars(
+                FollowupRequest.select(
+                    user,
+                    options=[
+                        selectinload(FollowupRequest.allocation).selectinload(
+                            Allocation.instrument
+                        )
+                    ],
+                )
+                .where(FollowupRequest.obj_id.in_(list(followup)))
+                .where(FollowupRequest.status != "deleted")
+            )
+            for req in requests_result.unique().all():
+                if (
+                    "triggered" not in req.allocation.types
+                    or req.payload.get("request_type") == "forced_photometry"
+                    or re.search("fail|reject|error", req.status, re.IGNORECASE)
+                ):
+                    continue
+                followup[req.obj_id].append(
+                    {
+                        "instrument_id": req.allocation.instrument_id,
+                        "instrument_name": req.allocation.instrument.name,
+                        "status": req.status,
+                    }
+                )
+            assignments_result = await session.scalars(
+                ClassicalAssignment.select(
+                    user,
+                    options=[
+                        selectinload(ClassicalAssignment.run).selectinload(
+                            ObservingRun.instrument
+                        )
+                    ],
+                ).where(ClassicalAssignment.obj_id.in_(list(followup)))
+            )
+            for assignment in assignments_result.unique().all():
+                followup[assignment.obj_id].append(
+                    {
+                        "instrument_id": assignment.run.instrument_id,
+                        "instrument_name": assignment.run.instrument.name,
+                        "status": assignment.status,
+                        "run_date": assignment.run.calendar_date,
+                    }
+                )
+        for associated_obj in associated_objs:
+            associated_obj["followup"] = followup[associated_obj["obj_id"]]
         source_info["associated_objs"] = sorted(
             associated_objs, key=lambda x: x["separation"]
         )
