@@ -5,9 +5,7 @@ import type { Theme } from "@mui/material/styles";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import Skeleton from "@mui/material/Skeleton";
-import Tooltip from "@mui/material/Tooltip";
 
 import ReactMarkdown from "react-markdown";
 
@@ -392,22 +390,6 @@ const CommentThread = ({
                 }
                 onBlur={() => handleMouseLeave()}
               >
-                {/* Meta-object provenance: comment aggregated from a linked source */}
-                {obj_id && objID && obj_id !== objID && (
-                  <Tooltip title={`From linked source ${obj_id}`}>
-                    <Chip
-                      label={obj_id}
-                      size="small"
-                      variant="outlined"
-                      component="a"
-                      href={`/source/${obj_id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      clickable
-                      sx={{ height: 18 }}
-                    />
-                  </Tooltip>
-                )}
                 <Comment
                   // Spectra comments are merged into the source thread, so the
                   // type comes from the comment itself when the API sends it.
@@ -419,6 +401,9 @@ const CommentThread = ({
                   compact={compact}
                   id={id}
                   objID={objID}
+                  linkedObjID={
+                    obj_id && objID && obj_id !== objID ? obj_id : null
+                  }
                   gcnEventID={gcnEventID}
                   earthquakeID={earthquakeID}
                   author={author}
