@@ -79,6 +79,7 @@ export const markdownLink = ({ node, children, ...props }: any) => (
 interface CommentProps {
   resourceType?: string;
   objID?: string | null;
+  linkedObjID?: string | null;
   gcnEventID?: number | null;
   earthquakeID?: string | null;
   id?: any;
@@ -100,6 +101,7 @@ interface CommentProps {
 const Comment = ({
   resourceType = "sources",
   objID = null,
+  linkedObjID = null,
   gcnEventID = null,
   earthquakeID = null,
   id = null,
@@ -313,6 +315,31 @@ const Comment = ({
           >
             {dayjs().to(dayjs.utc(`${created_at}Z`))}
           </Box>
+          {linkedObjID && (
+            <Tooltip title={`From linked source ${linkedObjID}`}>
+              <Box
+                component="span"
+                sx={{
+                  fontSize: "0.75rem",
+                  color: "text.secondary",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  minWidth: 0,
+                }}
+              >
+                on{" "}
+                <Link
+                  component={RouterLink}
+                  to={`/source/${linkedObjID}`}
+                  underline="hover"
+                  sx={{ fontWeight: 600 }}
+                >
+                  {linkedObjID}
+                </Link>
+              </Box>
+            </Tooltip>
+          )}
           {visibility.length > 0 && (
             <Tooltip
               title={visibility.map((line) => (
